@@ -1,18 +1,25 @@
 """
 Summarization Expert Agent using LangChain
 Handles broad questions, summaries, and timeline-oriented queries.
+Enhanced with Supabase vector search for context retrieval.
 """
 
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.messages import HumanMessage, SystemMessage
 from typing import Optional
+from dotenv import load_dotenv
+from supabase.client import create_client
 import os
+
+# Load environment variables
+load_dotenv()
 
 
 class SummarizationExpertAgent:
     """
     A specialized agent for handling broad questions, summaries, and timeline-oriented queries.
     This agent excels at providing comprehensive overviews and high-level insights.
+    Enhanced with Supabase vector search for retrieving relevant context.
     """
     
     def __init__(self, model_name="gpt-3.5-turbo", temperature=0.7):
@@ -24,10 +31,63 @@ class SummarizationExpertAgent:
             temperature: Temperature for creative but coherent summaries
         """
         self.llm = ChatOpenAI(model=model_name, temperature=temperature)
+        self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        self.supabase_client = None
+        
+        # Initialize Supabase if credentials are available
+        try:
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            if supabase_url and supabase_key:
+                self.supabase_client = create_client(supabase_url, supabase_key)
+                print("✅ Supabase connected for context retrieval")
+        except Exception as e:
+            print(f"⚠️ Supabase connection failed: {str(e)}")
+    
+    def retrieve_relevant_chunks(self, query: str, top_k: int = 3, table_name: str = "summary_chunks") -> list:
+        """
+        Retrieve relevant chunks from Supabase vector database.
+        
+        Args:
+            query: The user's query
+            top_k: Number of top relevant chunks to retrieve
+            table_name: Name of the Supabase table
+            
+        Returns:
+            List of relevant chunk texts
+        """
+        if not self.supabase_client:
+            print("⚠️ Supabase not available, proceeding without context")
+            return []
+        
+        try:
+            # Create query embedding
+            query_embedding = self.embeddings.embed_query(query)
+            
+            # Search for similar chunks
+            results = self.supabase_client.rpc(
+                f"{table_name}_search",
+                {
+                    "query_embedding": query_embedding,
+                    "match_count": top_k
+                }
+            ).execute()
+            
+            if results.data:
+                print(f"✅ Retrieved {len(results.data)} relevant chunks from Supabase")
+                return [chunk["content"] for chunk in results.data]
+            else:
+                print("⚠️ No relevant chunks found")
+                return []
+                
+        except Exception as e:
+            print(f"⚠️ Error retrieving chunks: {str(e)}")
+            return []
         
     def process_broad_question(self, user_input: str, context: Optional[str] = None) -> str:
         """
         Process a broad question and generate a comprehensive summary or overview.
+        Now enhanced with Supabase vector search for retrieving relevant context.
         
         Args:
             user_input: The user's broad question
@@ -37,6 +97,11 @@ class SummarizationExpertAgent:
             A comprehensive summary or overview response
         """
         try:
+            print(f"\n🔍 Processing broad question: {user_input}")
+            
+            # Retrieve relevant chunks from Supabase
+            relevant_chunks = self.retrieve_relevant_chunks(user_input, top_k=3)
+            
             system_prompt = """You are a Summarization Expert AI assistant specializing in:
 - Creating comprehensive summaries and overviews
 - Analyzing timelines and trends
@@ -53,21 +118,32 @@ Your responses should be:
 
 Always provide thorough, professional summaries that give users a complete understanding of the topic."""
 
-            # Build the user message
+            # Build the user message with retrieved context
             user_message = f"User Question: {user_input}"
             
-            if context:
-                user_message += f"\n\nContext/Data to analyze:\n{context}"
+            # Add retrieved chunks as context
+            if relevant_chunks:
+                user_message += "\n\n--- Retrieved Relevant Context from Knowledge Base ---"
+                for i, chunk in enumerate(relevant_chunks, 1):
+                    user_message += f"\n\n[Context {i}]:\n{chunk}"
+                user_message += "\n\n--- End of Retrieved Context ---"
             
-            user_message += "\n\nPlease provide a comprehensive summary or overview addressing this broad question."
+            if context:
+                user_message += f"\n\nAdditional Context/Data to analyze:\n{context}"
+            
+            user_message += "\n\nPlease provide a comprehensive summary or overview addressing this broad question, using the retrieved context where relevant."
             
             messages = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_message)
             ]
             
+            print("🤖 Sending request to LLM...")
+            
             # Invoke the LLM
             response = self.llm.invoke(messages)
+            
+            print("✅ Received response from LLM\n")
             
             return response.content
             
