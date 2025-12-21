@@ -47,26 +47,32 @@ def search_documents(query: str, k: int = 5, table_name: str = "small_chunks"):
         openai_api_key=os.getenv("OPENAI_API_KEY")
     )
     
-    # Create vector store
-    vector_store = SupabaseVectorStore(
-        client=supabase_client,
-        embedding=embeddings,
-        table_name=table_name,
-        query_name=f"{table_name}_search"
-    )
+    # Create query embedding
+    query_embedding = embeddings.embed_query(query)
     
-    # Perform similarity search
-    results = vector_store.similarity_search_with_relevance_scores(query, k=k)
+    # Use the similarity search function directly
+    results = supabase_client.rpc(
+        f"{table_name}_search",
+        {
+            "query_embedding": query_embedding,
+            "match_count": k
+        }
+    ).execute()
     
-    print(f"\n📄 Found {len(results)} results:\n")
+    if not results.data:
+        print("\n📄 No results found.\n")
+        return []
     
-    for i, (doc, score) in enumerate(results, 1):
-        print(f"Result {i} (Similarity: {score:.4f})")
-        print(f"Source: {doc.metadata.get('source_file', 'Unknown')}")
-        print(f"Content: {doc.page_content[:200]}...")
+    print(f"\n📄 Found {len(results.data)} results:\n")
+    
+    for i, result in enumerate(results.data, 1):
+        print(f"Result {i} (Similarity: {result['similarity']:.4f})")
+        print(f"Source: {result['metadata'].get('source', 'Unknown')}")
+        print(f"Page: {result['metadata'].get('page', 'Unknown')}")
+        print(f"Content: {result['content'][:200]}...")
         print("-" * 60)
     
-    return results
+    return results.data
 
 
 def main():

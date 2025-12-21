@@ -38,13 +38,13 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        small_chunks.id,
-        small_chunks.content,
-        small_chunks.metadata,
-        1 - (small_chunks.embedding <=> query_embedding) AS similarity
-    FROM small_chunks
-    WHERE (filter = '{}' OR metadata @> filter)
-    ORDER BY small_chunks.embedding <=> query_embedding
+        sc.id,
+        sc.content,
+        sc.metadata,
+        1 - (sc.embedding <=> query_embedding) AS similarity
+    FROM small_chunks sc
+    WHERE (filter = '{}' OR sc.metadata @> filter)
+    ORDER BY sc.embedding <=> query_embedding
     LIMIT match_count;
 END;
 $$;
