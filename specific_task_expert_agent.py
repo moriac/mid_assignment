@@ -7,6 +7,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from typing import Optional
 import os
+from supabase_utils import get_top_k_chunks_from_small_chunks
 
 
 class SpecificTaskExpertAgent:
@@ -37,7 +38,11 @@ class SpecificTaskExpertAgent:
             A precise, specific answer
         """
         try:
-            system_prompt = """You are a Specific Task Expert AI assistant specializing in:
+            # Retrieve top 3 relevant chunks from Supabase
+            relevant_chunks = get_top_k_chunks_from_small_chunks(user_input, k=3)
+            context_str = "\n---\n".join(relevant_chunks) if relevant_chunks else None
+
+            system_prompt = """You are an Insurance representative expert that answers specific questions with precision and accuracy. You are a specialized assistant specializing in:
 - Finding exact information (needle in haystack)
 - Providing precise, accurate answers
 - Locating specific facts, numbers, dates, and details
@@ -55,22 +60,21 @@ Focus on providing the exact answer to the specific question asked."""
 
             # Build the user message
             user_message = f"User Question: {user_input}"
-            
-            if context:
-                user_message += f"\n\nContext/Data to search:\n{context}"
-            
+            if context_str:
+                user_message += f"\n\nContext/Data to search:\n{context_str}"
             user_message += "\n\nPlease provide a precise, specific answer to this question."
-            
+
             messages = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_message)
             ]
-            
+
             # Invoke the LLM
             response = self.llm.invoke(messages)
-            
+
+            # Print the answer in the terminal
+            print("\n===== LLM Answer =====\n" + response.content + "\n======================\n")
             return response.content
-            
         except Exception as e:
             return f"❌ Error processing specific question: {str(e)}"
     
