@@ -5,11 +5,16 @@ Enhanced with Supabase vector search for context retrieval.
 """
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from typing import Optional
 from dotenv import load_dotenv
 from supabase.client import create_client
 import os
+from mcp.claim_date_tools import (
+    calculate_timeline_duration,
+    calculate_business_days,
+    check_policy_compliance
+)
 
 # Load environment variables
 load_dotenv()
@@ -33,6 +38,15 @@ class SummarizationExpertAgent:
         self.llm = ChatOpenAI(model=model_name, temperature=temperature)
         self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         self.supabase_client = None
+        
+        # Initialize MCP date/time tools
+        self.date_tools = [
+            calculate_timeline_duration,
+            calculate_business_days,
+            check_policy_compliance
+        ]
+        # Bind tools to LLM for automatic tool calling
+        self.llm_with_tools = self.llm.bind_tools(self.date_tools)
         
         # Initialize Supabase if credentials are available
         try:
@@ -116,6 +130,13 @@ Your responses should be:
 4. Easy to understand and actionable
 5. Include relevant timelines when applicable
 
+You have access to the following MCP tools for date/time calculations:
+- calculate_timeline_duration: Calculate time between two dates
+- calculate_business_days: Calculate business days between dates
+- check_policy_compliance: Check if dates meet policy deadlines
+
+Use these tools when the question involves date/time calculations, timelines, or compliance checks.
+
 Always provide thorough, professional summaries that give users a complete understanding of the topic."""
 
             # Build the user message with retrieved context
@@ -139,13 +160,48 @@ Always provide thorough, professional summaries that give users a complete under
             ]
             
             print("🤖 Sending request to LLM...")
+            print("🔧 Available MCP Tools: calculate_timeline_duration, calculate_business_days, check_policy_compliance")
             
-            # Invoke the LLM
-            response = self.llm.invoke(messages)
+            # Invoke the LLM with tools
+            response = self.llm_with_tools.invoke(messages)
             
-            print("✅ Received response from LLM\n")
-            
-            return response.content
+            # Check if tools were used
+            tool_calls = []
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                tool_calls = response.tool_calls
+                print(f"\n🔧 MCP TOOLS USED: {len(tool_calls)} tool(s) called")
+                for tool_call in tool_calls:
+                    print(f"   ├─ Tool: {tool_call['name']}")
+                    print(f"   └─ Args: {tool_call['args']}")
+                
+                # Execute tool calls and get results
+                messages.append(response)
+                for tool_call in tool_calls:
+                    tool_name = tool_call['name']
+                    tool_args = tool_call['args']
+                    
+                    # Find and invoke the tool
+                    tool_result = None
+                    for tool in self.date_tools:
+                        if tool.name == tool_name:
+                            tool_result = tool.invoke(tool_args)
+                            print(f"   ✅ {tool_name} result: {tool_result}")
+                            break
+                    
+                    # Add tool result to messages
+                    messages.append(ToolMessage(
+                        content=str(tool_result),
+                        tool_call_id=tool_call['id']
+                    ))
+                
+                # Get final response with tool results
+                final_response = self.llm_with_tools.invoke(messages)
+                print("✅ Received response from LLM (with tool results)\n")
+                return final_response.content
+            else:
+                print("   ℹ️  No MCP tools were used for this query")
+                print("✅ Received response from LLM\n")
+                return response.content
             
         except Exception as e:
             return f"❌ Error processing broad question: {str(e)}"

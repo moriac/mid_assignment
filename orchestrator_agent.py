@@ -11,6 +11,11 @@ from typing import Tuple
 import os
 from summarization_expert_agent import SummarizationExpertAgent
 from specific_task_expert_agent import SpecificTaskExpertAgent
+from mcp.claim_date_tools import (
+    calculate_timeline_duration,
+    calculate_business_days,
+    check_policy_compliance
+)
 
 
 class OrchestratorAgent:
@@ -31,6 +36,12 @@ class OrchestratorAgent:
         self.summarization_expert = SummarizationExpertAgent(model_name=model_name)
         # Initialize the Specific Task Expert agent for type 1 questions
         self.specific_task_expert = SpecificTaskExpertAgent(model_name=model_name)
+        # Initialize MCP date/time tools
+        self.date_tools = [
+            calculate_timeline_duration,
+            calculate_business_days,
+            check_policy_compliance
+        ]
         
     def classify_question(self, user_input: str) -> Tuple[int, str]:
         """
