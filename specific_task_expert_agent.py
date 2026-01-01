@@ -52,6 +52,92 @@ class SpecificTaskExpertAgent:
                 print(f"⚠️ Warning: Could not initialize hierarchical retriever: {e}")
                 print("   Falling back to no retrieval")
                 self.use_hierarchical_retrieval = False
+    
+    def _get_metadata_from_retriever(self) -> Optional[dict]:
+        """
+        Get metadata from the first node in the retriever's index.
+        
+        Returns:
+            Dictionary of metadata or None
+        """
+        if not self.use_hierarchical_retrieval or not self.hierarchical_retriever:
+            return None
+        
+        try:
+            # Retrieve any node to get metadata (metadata is attached to all nodes from the document)
+            test_nodes = self.hierarchical_retriever.retrieve("claim information")
+            if test_nodes and hasattr(test_nodes[0], 'node') and hasattr(test_nodes[0].node, 'metadata'):
+                return test_nodes[0].node.metadata
+        except:
+            pass
+        
+        return None
+    
+    def _answer_from_metadata(self, user_input: str, metadata: dict) -> Optional[str]:
+        """
+        Try to answer the question directly from metadata if possible.
+        Does NOT answer calculation/analysis questions - those need full context + tools.
+        
+        Args:
+            user_input: The user's question
+            metadata: Extracted metadata dictionary
+            
+        Returns:
+            Answer string if found in metadata, None otherwise
+        """
+        query_lower = user_input.lower()
+        
+        # Skip metadata-only answers for questions that need calculation or analysis
+        calculation_keywords = ['how many', 'calculate', 'elapsed', 'duration', 'between', 'difference', 'days between']
+        if any(keyword in query_lower for keyword in calculation_keywords):
+            return None  # Let the full system handle this with MCP tools
+        
+        # Incident date queries
+        if any(phrase in query_lower for phrase in ['incident date', 'when did the incident occur', 'date of incident', 'loss date']):
+            if metadata.get('incident_date_display'):
+                return f"The incident occurred on {metadata['incident_date_display']}."
+            elif metadata.get('incident_date'):
+                return f"The incident occurred on {metadata['incident_date']}."
+        
+        # Claim filed date queries
+        if any(phrase in query_lower for phrase in ['claim filed', 'when was the claim filed', 'filing date', 'claim date']):
+            if metadata.get('claim_filed_date_display'):
+                return f"The claim was filed on {metadata['claim_filed_date_display']}."
+            elif metadata.get('claim_filed_date'):
+                return f"The claim was filed on {metadata['claim_filed_date']}."
+        
+        # Claim number queries
+        if any(phrase in query_lower for phrase in ['claim number', 'claim id', 'claim #']):
+            if metadata.get('claim_number'):
+                return f"The claim number is {metadata['claim_number']}."
+        
+        # Policy number queries
+        if any(phrase in query_lower for phrase in ['policy number', 'policy id', 'policy #']):
+            if metadata.get('policy_number'):
+                return f"The policy number is {metadata['policy_number']}."
+        
+        # Claimant/Policyholder queries
+        if any(phrase in query_lower for phrase in ['claimant', 'who is the claimant', 'policyholder', 'who is the policyholder']):
+            if 'policyholder' in query_lower and metadata.get('policyholder'):
+                return f"The policyholder is {metadata['policyholder']}."
+            elif metadata.get('claimant'):
+                return f"The claimant is {metadata['claimant']}."
+        
+        # Claim amount queries
+        if any(phrase in query_lower for phrase in ['claim amount', 'total claim', 'how much']):
+            if metadata.get('claim_amount'):
+                try:
+                    amount = float(metadata['claim_amount'])
+                    return f"The claim amount is ${amount:,.2f}."
+                except:
+                    return f"The claim amount is ${metadata['claim_amount']}."
+        
+        # Location queries
+        if any(phrase in query_lower for phrase in ['location', 'where', 'address']):
+            if metadata.get('loss_location'):
+                return f"The loss location is {metadata['loss_location']}."
+        
+        return None
         
     def process_specific_question(self, user_input: str, context: Optional[str] = None) -> str:
         """
@@ -65,7 +151,16 @@ class SpecificTaskExpertAgent:
             A precise, specific answer
         """
         try:
-            # Retrieve relevant context using hierarchical auto-merging retriever
+            # Step 1: Try to answer from metadata first (most accurate)
+            metadata = self._get_metadata_from_retriever()
+            if metadata:
+                metadata_answer = self._answer_from_metadata(user_input, metadata)
+                if metadata_answer:
+                    print(f"\n✅ Answered directly from document metadata (100% accurate)")
+                    print(f"   Metadata used: {[k for k, v in metadata.items() if v]}")
+                    return metadata_answer
+            
+            # Step 2: Use hierarchical retrieval for complex queries
             context_str = None
             if self.use_hierarchical_retrieval and self.hierarchical_retriever:
                 print(f"\n🔍 Retrieving context using hierarchical auto-merging retrieval...")
@@ -73,9 +168,28 @@ class SpecificTaskExpertAgent:
                 
                 if retrieved_nodes:
                     print(f"   Retrieved {len(retrieved_nodes)} node(s) after auto-merging")
-                    # Extract text from retrieved nodes
-                    relevant_chunks = [node.text for node in retrieved_nodes]
-                    context_str = "\n---\n".join(relevant_chunks)
+                    
+                    # Add metadata to context for complex queries (like date calculations)
+                    if metadata:
+                        metadata_context = "\n📋 VERIFIED METADATA:\n"
+                        if metadata.get('incident_date'):
+                            metadata_context += f"- Incident Date: {metadata['incident_date']}\n"
+                        if metadata.get('claim_filed_date'):
+                            metadata_context += f"- Claim Filed Date: {metadata['claim_filed_date']}\n"
+                        if metadata.get('claim_number'):
+                            metadata_context += f"- Claim Number: {metadata['claim_number']}\n"
+                        if metadata.get('policy_number'):
+                            metadata_context += f"- Policy Number: {metadata['policy_number']}\n"
+                        if metadata.get('claim_amount'):
+                            metadata_context += f"- Claim Amount: ${metadata['claim_amount']}\n"
+                        metadata_context += "\n"
+                    
+                        # Extract text from retrieved nodes
+                        relevant_chunks = [node.text for node in retrieved_nodes]
+                        context_str = metadata_context + "\n---\n".join(relevant_chunks)
+                    else:
+                        relevant_chunks = [node.text for node in retrieved_nodes]
+                        context_str = "\n---\n".join(relevant_chunks)
                 else:
                     print("   No relevant nodes found")
             else:

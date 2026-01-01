@@ -32,6 +32,9 @@ except ImportError:
 # Supabase imports for REST API
 from supabase import create_client, Client
 
+# Import metadata extraction
+from extract_claim_metadata import load_claim_document_with_metadata
+
 load_dotenv()
 
 
@@ -115,24 +118,21 @@ class HierarchicalClaimRetriever:
     
     def load_pdf(self) -> list[Document]:
         """
-        Load and parse the insurance claim PDF.
+        Load and parse the insurance claim PDF with metadata extraction.
         
         Returns:
-            List of Document objects
+            List of Document objects with metadata attached
         """
         if not os.path.exists(self.pdf_path):
             raise FileNotFoundError(f"PDF file not found: {self.pdf_path}")
         
-        loader = PyMuPDFReader()
-        docs = loader.load(file_path=Path(self.pdf_path))
+        # Load document with metadata extraction
+        print(f"Loading PDF with metadata extraction...")
+        document = load_claim_document_with_metadata(self.pdf_path)
         
-        # Stitch documents into one for better chunk coherence
-        # (following LlamaIndex best practices)
-        if docs:
-            doc_text = "\n\n".join([d.get_content() for d in docs])
-            return [Document(text=doc_text)]
+        print(f"✓ Document loaded with {len(document.metadata)} metadata fields")
         
-        return docs
+        return [document]
     
     def build_hierarchy(self, documents: list[Document]) -> tuple:
         """
@@ -146,18 +146,27 @@ class HierarchicalClaimRetriever:
         """
         print(f"Building hierarchy with chunk sizes: {self.chunk_sizes}")
         
-        # Create hierarchical parser
+        # Store metadata separately to avoid chunking issues
+        doc_metadata = documents[0].metadata if documents else {}
+        
+        # Create hierarchical parser with metadata exclusion
         node_parser = HierarchicalNodeParser.from_defaults(
-            chunk_sizes=self.chunk_sizes
+            chunk_sizes=self.chunk_sizes,
+            include_metadata=False  # Don't include metadata in chunk size calculation
         )
         
         # Parse documents into hierarchical nodes
         nodes = node_parser.get_nodes_from_documents(documents)
         print(f"Created {len(nodes)} total nodes")
         
+        # Manually attach metadata to all nodes after parsing
+        for node in nodes:
+            node.metadata.update(doc_metadata)
+        
         # Extract leaf nodes (smallest chunks that go into vector store)
         leaf_nodes = get_leaf_nodes(nodes)
         print(f"Extracted {len(leaf_nodes)} leaf nodes for vector indexing")
+        print(f"✓ Metadata attached to all {len(nodes)} nodes")
         
         return nodes, leaf_nodes
     
