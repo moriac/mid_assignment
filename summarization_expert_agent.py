@@ -116,6 +116,12 @@ class SummarizationExpertAgent:
             # Retrieve relevant chunks from Supabase
             relevant_chunks = self.retrieve_relevant_chunks(user_input, top_k=3)
             
+            # If no relevant chunks found and no additional context provided, return early
+            if not relevant_chunks and not context:
+                message = "❌ No answer to user since no relevant chunks were found"
+                print(message)
+                return message
+            
             system_prompt = """You are a Summarization Expert AI assistant specializing in:
 - Creating comprehensive summaries and overviews
 - Analyzing timelines and trends
