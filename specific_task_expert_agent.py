@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from typing import Optional
 import os
-from supabase_utils import get_top_k_chunks_from_small_chunks
+from hierarchical_retriever import get_claim_retriever
 from mcp.claim_date_tools import (
     calculate_timeline_duration,
     calculate_business_days,
@@ -21,13 +21,14 @@ class SpecificTaskExpertAgent:
     This agent excels at finding exact information and providing precise answers.
     """
     
-    def __init__(self, model_name="gpt-3.5-turbo", temperature=0):
+    def __init__(self, model_name="gpt-3.5-turbo", temperature=0, use_hierarchical_retrieval=True):
         """
         Initialize the Specific Task Expert agent.
         
         Args:
             model_name: The LLM model to use
             temperature: Temperature set to 0 for precise, consistent answers
+            use_hierarchical_retrieval: If True, use hierarchical auto-merging retrieval (default: True)
         """
         self.llm = ChatOpenAI(model=model_name, temperature=temperature)
         # Initialize MCP date/time tools
@@ -38,6 +39,19 @@ class SpecificTaskExpertAgent:
         ]
         # Bind tools to LLM for automatic tool calling
         self.llm_with_tools = self.llm.bind_tools(self.date_tools)
+        
+        # Initialize hierarchical retriever
+        self.use_hierarchical_retrieval = use_hierarchical_retrieval
+        self.hierarchical_retriever = None
+        if use_hierarchical_retrieval:
+            print("Initializing hierarchical auto-merging retrieval system...")
+            try:
+                self.hierarchical_retriever = get_claim_retriever(use_supabase=False)
+                print("✓ Hierarchical retriever ready")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not initialize hierarchical retriever: {e}")
+                print("   Falling back to no retrieval")
+                self.use_hierarchical_retrieval = False
         
     def process_specific_question(self, user_input: str, context: Optional[str] = None) -> str:
         """
@@ -51,9 +65,21 @@ class SpecificTaskExpertAgent:
             A precise, specific answer
         """
         try:
-            # Retrieve top 3 relevant chunks from Supabase
-            relevant_chunks = get_top_k_chunks_from_small_chunks(user_input, k=3)
-            context_str = "\n---\n".join(relevant_chunks) if relevant_chunks else None
+            # Retrieve relevant context using hierarchical auto-merging retriever
+            context_str = None
+            if self.use_hierarchical_retrieval and self.hierarchical_retriever:
+                print(f"\n🔍 Retrieving context using hierarchical auto-merging retrieval...")
+                retrieved_nodes = self.hierarchical_retriever.retrieve(user_input)
+                
+                if retrieved_nodes:
+                    print(f"   Retrieved {len(retrieved_nodes)} node(s) after auto-merging")
+                    # Extract text from retrieved nodes
+                    relevant_chunks = [node.text for node in retrieved_nodes]
+                    context_str = "\n---\n".join(relevant_chunks)
+                else:
+                    print("   No relevant nodes found")
+            else:
+                print("\n⚠️ Hierarchical retrieval not available, using provided context only")
 
             system_prompt = """You are an Insurance representative expert that answers specific questions with precision and accuracy. You are a specialized assistant specializing in:
 - Finding exact information (needle in haystack)
