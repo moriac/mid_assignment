@@ -29,8 +29,13 @@ try:
 except ImportError:
     SUPABASE_VECTOR_STORE_AVAILABLE = False
 
-# Supabase imports for REST API
-from supabase import create_client, Client
+# Make Supabase imports conditional
+try:
+    from supabase import create_client, Client
+    SUPABASE_CLIENT_AVAILABLE = True
+except ImportError:
+    SUPABASE_CLIENT_AVAILABLE = False
+    print("⚠️ Supabase client not available (install with: pip install supabase)")
 
 # Import metadata extraction
 from extract_claim_metadata import load_claim_document_with_metadata
@@ -74,7 +79,14 @@ class HierarchicalClaimRetriever:
         self.use_supabase_vector_store = use_supabase_vector_store
         
         # Initialize components
-        self.supabase_client = self._init_supabase()
+        # Only initialize Supabase if needed and available
+        if self.use_supabase_vector_store:
+            if not SUPABASE_CLIENT_AVAILABLE:
+                raise ImportError("Supabase storage requested but supabase package not installed")
+            self.supabase_client = self._init_supabase()
+        else:
+            self.supabase_client = None  # ✅ No Supabase needed
+        
         self.embeddings = self._init_embeddings()
         self.llm = self._init_llm()
         

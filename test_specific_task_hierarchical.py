@@ -43,7 +43,22 @@ def test_hierarchical_integration():
         print("=" * 80)
         
         try:
+            # Get retrieved nodes directly
+            retrieved_nodes = agent.hierarchical_retriever.retrieve(query)
+            
+            print(f"\n📄 RETRIEVED CONTEXT ({len(retrieved_nodes)} nodes):")
+            print("-" * 80)
+            for i, node in enumerate(retrieved_nodes, 1):
+                print(f"\n[Node {i}]")
+                print(f"Score: {node.score:.4f}")
+                print(f"Text:\n{node.text}")
+                print("-" * 80)
+            
+            # Get final answer
+            print("\n🤖 FINAL ANSWER:")
+            print("-" * 80)
             response = agent.process_specific_question(query)
+            print(response)
             print(f"\n✓ Query processed successfully")
             
         except Exception as e:
