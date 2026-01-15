@@ -1,5 +1,5 @@
 """
-Use ChatGPT to intelligently chunk PDF by sub-chapters and store in Supabase
+Use ChatGPT to intelligently chunk PDF by sub-chapters and store in ChromaDB
 """
 
 import os
@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
-from supabase.client import create_client
-from langchain_openai import OpenAIEmbeddings
+import chromadb
+from chromadb.config import Settings
 
 # For PDF reading
 import fitz  # PyMuPDF
@@ -16,15 +16,21 @@ import fitz  # PyMuPDF
 load_dotenv()
 
 
-def initialize_supabase():
-    """Initialize Supabase client"""
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+def initialize_chromadb():
+    """Initialize ChromaDB client with persistent storage"""
+    print("🔧 Initializing ChromaDB...")
     
-    if not supabase_url or not supabase_key:
-        raise ValueError("Missing Supabase credentials in .env file")
+    # Create persistent client (saves to ./chroma_db directory)
+    client = chromadb.PersistentClient(path="./chroma_db")
     
-    return create_client(supabase_url, supabase_key)
+    # Get or create collection for insurance claims
+    collection = client.get_or_create_collection(
+        name="insurance_claims",
+        metadata={"description": "Insurance claim documents with intelligent chunking"}
+    )
+    
+    print(f"✅ ChromaDB initialized: {collection.count()} existing documents\n")
+    return collection
 
 
 def extract_pdf_text(pdf_path: str):
@@ -145,13 +151,18 @@ Here is the insurance claim document to extract from:
                 if is_generic:
                     print(f"  ⚠️ Warning: '{title}' appears generic - ensure actual data extraction")
                 
-                full_chunk = f"Section: {title}\n\n{content}"
-                chunks.append(full_chunk)
+                chunks.append({
+                    "title": title,
+                    "content": content
+                })
                 print(f"  ✓ '{title}' ({len(content)} chars)")
             elif isinstance(chunk_obj, str):
                 # Fallback if format is just strings
                 if len(chunk_obj.strip()) >= 200:
-                    chunks.append(chunk_obj)
+                    chunks.append({
+                        "title": "Section",
+                        "content": chunk_obj
+                    })
                     print(f"  ✓ Text chunk ({len(chunk_obj)} chars)")
         
         if not chunks:
@@ -163,7 +174,7 @@ Here is the insurance claim document to extract from:
         # Show first chunk preview to verify it has actual data
         if chunks:
             print("📋 First chunk preview:")
-            print(chunks[0][:300])
+            print(chunks[0]['content'][:300])
             print("...\n")
         
         return chunks
@@ -174,92 +185,81 @@ Here is the insurance claim document to extract from:
         return []
 
 
-def store_in_supabase(chunks: list, table_name: str = "summary_chunks"):
-    """Store chunks in Supabase with embeddings"""
-    print(f"\n🔮 Creating embeddings and storing in '{table_name}'...")
-    
-    supabase_client = initialize_supabase()
+def store_in_chromadb(chunks: list, collection, pdf_filename: str):
+    """Store chunks in ChromaDB with embeddings"""
+    print(f"\n💾 Storing chunks in ChromaDB...")
     
     # Clear existing data for this source to avoid duplicates
     print("  🗑️ Clearing existing chunks from this source...")
     try:
-        supabase_client.table(table_name).delete().eq(
-            "metadata->>source", "insurance_claim_case.pdf"
-        ).execute()
-        print("  ✓ Existing chunks cleared")
+        # Get all documents from this source
+        results = collection.get(
+            where={"source": pdf_filename}
+        )
+        if results['ids']:
+            collection.delete(ids=results['ids'])
+            print(f"  ✓ Deleted {len(results['ids'])} existing chunks")
     except Exception as e:
         print(f"  ⚠️ Could not clear existing chunks: {e}")
     
-    # Initialize embeddings
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        openai_api_key=os.getenv("OPENAI_API_KEY")
-    )
+    # Prepare data for ChromaDB
+    documents = []
+    metadatas = []
+    ids = []
     
-    inserted_count = 0
-    
-    for i, chunk_text in enumerate(chunks, 1):
-        print(f"  Processing chunk {i}/{len(chunks)}...", end=" ")
+    for i, chunk in enumerate(chunks, 1):
+        # Create full text with title
+        full_text = f"Section: {chunk['title']}\n\n{chunk['content']}"
         
-        try:
-            # Create embedding
-            embedding_vector = embeddings.embed_query(chunk_text)
-            
-            # Extract title if present
-            title = "Section"
-            if chunk_text.startswith("Section:"):
-                first_line_end = chunk_text.find("\n")
-                if first_line_end > 0:
-                    title = chunk_text[9:first_line_end].strip()
-            
-            # Prepare record
-            record = {
-                "content": chunk_text,
-                "metadata": {
-                    "source": "insurance_claim_case.pdf",
-                    "chunk_number": i,
-                    "chunk_type": "insurance_section",
-                    "title": title,
-                    "char_count": len(chunk_text)
-                },
-                "embedding": embedding_vector
-            }
-            
-            # Insert into Supabase
-            supabase_client.table(table_name).insert(record).execute()
-            inserted_count += 1
-            print("✓")
-        except Exception as e:
-            print(f"❌ Error: {str(e)}")
-            continue
+        documents.append(full_text)
+        metadatas.append({
+            "source": pdf_filename,
+            "chunk_number": i,
+            "chunk_type": "insurance_section",
+            "title": chunk['title'],
+            "char_count": len(chunk['content'])
+        })
+        ids.append(f"{pdf_filename}_chunk_{i}")
+        
+        print(f"  Prepared chunk {i}/{len(chunks)}: {chunk['title']}")
     
-    print(f"\n✅ Successfully stored {inserted_count} chunks in '{table_name}'!")
-    return inserted_count
+    # Add to ChromaDB (it will automatically create embeddings)
+    try:
+        collection.add(
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+        print(f"\n✅ Successfully stored {len(chunks)} chunks in ChromaDB!")
+        return len(chunks)
+    except Exception as e:
+        print(f"❌ Error storing in ChromaDB: {e}")
+        return 0
 
 
-def verify_chunks(table_name: str = "summary_chunks"):
+def verify_chunks(collection, pdf_filename: str):
     """Verify the quality of stored chunks"""
-    print(f"\n🔍 Verifying chunks in '{table_name}'...")
-    
-    supabase_client = initialize_supabase()
+    print(f"\n🔍 Verifying chunks in ChromaDB...")
     
     try:
-        result = supabase_client.table(table_name).select(
-            "id, content, metadata"
-        ).eq("metadata->>source", "insurance_claim_case.pdf").execute()
+        # Query all chunks from this source
+        results = collection.get(
+            where={"source": pdf_filename},
+            include=["documents", "metadatas"]
+        )
         
-        if not result.data:
+        if not results['ids']:
             print("  ❌ No chunks found!")
             return False
         
-        print(f"  ✓ Found {len(result.data)} chunks")
+        print(f"  ✓ Found {len(results['ids'])} chunks")
         print("\n  Sample chunks:")
         
-        for i, chunk in enumerate(result.data[:3], 1):
-            content = chunk['content']
-            title = chunk.get('metadata', {}).get('title', 'Unknown')
+        for i in range(min(3, len(results['ids']))):
+            content = results['documents'][i]
+            title = results['metadatas'][i].get('title', 'Unknown')
             preview = content[:200].replace('\n', ' ')
-            print(f"\n  Chunk {i} - {title}:")
+            print(f"\n  Chunk {i+1} - {title}:")
             print(f"    {preview}...")
             print(f"    (Length: {len(content)} chars)")
         
@@ -272,7 +272,7 @@ def verify_chunks(table_name: str = "summary_chunks"):
 
 def main():
     print("=" * 60)
-    print("ChatGPT-Powered PDF Chunking for Insurance Claims")
+    print("ChatGPT-Powered PDF Chunking with ChromaDB")
     print("=" * 60)
     
     pdf_file = "insurance_claim_case.pdf"
@@ -283,6 +283,9 @@ def main():
         return
     
     try:
+        # Initialize ChromaDB
+        collection = initialize_chromadb()
+        
         # Step 1: Extract PDF text
         pdf_text = extract_pdf_text(pdf_file)
         
@@ -297,15 +300,15 @@ def main():
             print("❌ No valid chunks created by ChatGPT!")
             return
         
-        # Step 3: Store in Supabase
-        stored_count = store_in_supabase(chunks, "summary_chunks")
+        # Step 3: Store in ChromaDB
+        stored_count = store_in_chromadb(chunks, collection, pdf_file)
         
         if stored_count == 0:
             print("❌ No chunks were stored!")
             return
         
         # Step 4: Verify the chunks
-        verify_chunks("summary_chunks")
+        verify_chunks(collection, pdf_file)
         
         print("\n" + "=" * 60)
         print("✨ Process completed!")
@@ -314,8 +317,9 @@ def main():
         print(f"  - File: {pdf_file}")
         print(f"  - Chunks created: {len(chunks)}")
         print(f"  - Chunks stored: {stored_count}")
-        print(f"  - Table: summary_chunks")
-        print(f"  - Embedding model: text-embedding-3-small")
+        print(f"  - Database: ChromaDB (./chroma_db)")
+        print(f"  - Collection: insurance_claims")
+        print(f"  - Embedding: ChromaDB default (all-MiniLM-L6-v2)")
         
     except Exception as e:
         print(f"\n❌ Error: {str(e)}")
