@@ -22,20 +22,14 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from llama_index.readers.file import PyMuPDFReader
 
-# Optional: Supabase vector store (requires PostgreSQL connection)
+# ChromaDB vector store (default storage backend)
 try:
-    from llama_index.vector_stores.supabase import SupabaseVectorStore
-    SUPABASE_VECTOR_STORE_AVAILABLE = True
+    from llama_index.vector_stores.chroma import ChromaVectorStore
+    import chromadb
+    CHROMA_AVAILABLE = True
 except ImportError:
-    SUPABASE_VECTOR_STORE_AVAILABLE = False
-
-# Make Supabase imports conditional
-try:
-    from supabase import create_client, Client
-    SUPABASE_CLIENT_AVAILABLE = True
-except ImportError:
-    SUPABASE_CLIENT_AVAILABLE = False
-    print("⚠️ Supabase client not available (install with: pip install supabase)")
+    CHROMA_AVAILABLE = False
+    print("⚠️ ChromaDB not available (install with: pip install llama-index-vector-stores-chroma chromadb)")
 
 # Import metadata extraction
 from extract_claim_metadata import load_claim_document_with_metadata
@@ -52,40 +46,47 @@ class HierarchicalClaimRetriever:
     - Level 2: 512 characters (mid-level nodes)
     - Level 3: 128 characters (leaf nodes)
     
-    Leaf nodes are indexed in Supabase vector store, while all nodes are
-    stored in a docstore for auto-merging during retrieval.
+    Leaf nodes are indexed in ChromaDB vector store by default (or in-memory),
+    while all nodes are stored in a docstore for auto-merging during retrieval.
     """
     
     def __init__(
         self,
         pdf_path: str = "insurance_claim_case.pdf",
-        table_name: str = "hierarchical_chunks",
+        collection_name: str = "small_chunks",
         chunk_sizes: Optional[list] = None,
-        use_supabase_vector_store: bool = False  # Changed default to False
+        use_chromadb: bool = True,
+        chroma_persist_dir: str = "./chroma_db"
     ):
         """
         Initialize the hierarchical retriever.
         
         Args:
             pdf_path: Path to the insurance claim PDF file
-            table_name: Supabase table name for storing leaf node embeddings
+            collection_name: ChromaDB collection name for storing leaf node embeddings (default: "small_chunks")
             chunk_sizes: List of chunk sizes for hierarchy levels (default: [2048, 512, 128])
-            use_supabase_vector_store: If True, use Supabase vector store (requires SUPABASE_DB_PASSWORD)
-                                      If False, use in-memory vector store (default)
+            use_chromadb: If True, use ChromaDB vector store (default: True)
+                         If False, use in-memory vector store
+            chroma_persist_dir: Directory for ChromaDB persistent storage (default: "./chroma_db")
         """
         self.pdf_path = pdf_path
-        self.table_name = table_name
+        self.collection_name = collection_name
         self.chunk_sizes = chunk_sizes or [2048, 512, 128]
-        self.use_supabase_vector_store = use_supabase_vector_store
+        self.use_chromadb = use_chromadb
+        self.chroma_persist_dir = chroma_persist_dir
+        self.docstore_persist_dir = os.path.join(chroma_persist_dir, "docstore")
         
         # Initialize components
-        # Only initialize Supabase if needed and available
-        if self.use_supabase_vector_store:
-            if not SUPABASE_CLIENT_AVAILABLE:
-                raise ImportError("Supabase storage requested but supabase package not installed")
-            self.supabase_client = self._init_supabase()
-        else:
-            self.supabase_client = None  # ✅ No Supabase needed
+        self.chroma_client = None
+        self.chroma_collection = None
+        
+        if self.use_chromadb:
+            if not CHROMA_AVAILABLE:
+                raise ImportError(
+                    "ChromaDB storage requested but required packages not installed.\n"
+                    "Install with: pip install llama-index-vector-stores-chroma chromadb"
+                )
+            self.chroma_client, self.chroma_collection = self._init_chromadb()
         
         self.embeddings = self._init_embeddings()
         self.llm = self._init_llm()
@@ -97,18 +98,26 @@ class HierarchicalClaimRetriever:
         self.base_index = None
         self.retriever = None
         
-    def _init_supabase(self) -> Client:
-        """Initialize Supabase client using environment variables."""
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_SERVICE_KEY")
+    def _init_chromadb(self) -> tuple:
+        """
+        Initialize ChromaDB client and collection.
         
-        if not url or not key:
-            raise ValueError(
-                "Missing Supabase credentials. Please set SUPABASE_URL and "
-                "SUPABASE_SERVICE_KEY in your .env file"
-            )
+        Returns:
+            Tuple of (chromadb_client, collection)
+        """
+        print(f"Initializing ChromaDB with collection: {self.collection_name}")
         
-        return create_client(url, key)
+        # Create persistent client
+        client = chromadb.PersistentClient(path=self.chroma_persist_dir)
+        
+        # Get or create collection
+        collection = client.get_or_create_collection(
+            name=self.collection_name,
+            metadata={"description": "Hierarchical chunks for insurance claim retrieval"}
+        )
+        
+        print(f"✓ ChromaDB initialized: {collection.count()} existing documents")
+        return client, collection
     
     def _init_embeddings(self) -> OpenAIEmbedding:
         """Initialize OpenAI embeddings."""
@@ -194,13 +203,17 @@ class HierarchicalClaimRetriever:
         self.docstore.add_documents(all_nodes)
         print(f"Added {len(all_nodes)} nodes to docstore")
         
+        # Persist docstore to disk if using ChromaDB
+        if self.use_chromadb:
+            os.makedirs(self.docstore_persist_dir, exist_ok=True)
+            self.docstore.persist(persist_path=os.path.join(self.docstore_persist_dir, "docstore.json"))
+            print(f"✓ Docstore persisted to: {self.docstore_persist_dir}")
+        
         # Initialize vector store
-        if self.use_supabase_vector_store and SUPABASE_VECTOR_STORE_AVAILABLE:
-            print("Using Supabase vector store (requires PostgreSQL connection)...")
-            self.vector_store = SupabaseVectorStore(
-                postgres_connection_string=self._get_postgres_connection_string(),
-                collection_name=self.table_name,
-                dimension=1536  # text-embedding-3-small dimension
+        if self.use_chromadb and CHROMA_AVAILABLE:
+            print(f"Using ChromaDB vector store (collection: {self.collection_name})...")
+            self.vector_store = ChromaVectorStore(
+                chroma_collection=self.chroma_collection
             )
         else:
             # Use in-memory vector store (no external database required)
@@ -218,40 +231,6 @@ class HierarchicalClaimRetriever:
             self.storage_context = StorageContext.from_defaults(
                 docstore=self.docstore
             )
-    
-    def _get_postgres_connection_string(self) -> str:
-        """
-        Get Postgres connection string from environment.
-        
-        Returns:
-            PostgreSQL connection string
-        """
-        # First, check if a full connection string is provided
-        connection_string = os.getenv("SUPABASE_DB_CONNECTION_STRING")
-        if connection_string:
-            print(f"Using connection string from SUPABASE_DB_CONNECTION_STRING")
-            return connection_string
-        
-        # Fallback: Try to construct from individual components
-        supabase_url = os.getenv("SUPABASE_URL")
-        db_password = os.getenv("SUPABASE_DB_PASSWORD")
-        
-        if not db_password:
-            raise ValueError(
-                "Either SUPABASE_DB_CONNECTION_STRING or SUPABASE_DB_PASSWORD must be set.\n"
-                "Add to your .env file:\n"
-                "SUPABASE_DB_CONNECTION_STRING=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres"
-            )
-        
-        # Extract project reference from Supabase URL
-        # URL format: https://[project-ref].supabase.co
-        if supabase_url:
-            project_ref = supabase_url.replace("https://", "").replace(".supabase.co", "").strip()
-            constructed_string = f"postgresql://postgres:{db_password}@db.{project_ref}.supabase.co:5432/postgres"
-            print(f"Constructed connection string from SUPABASE_URL and SUPABASE_DB_PASSWORD")
-            return constructed_string
-        
-        raise ValueError("Could not construct PostgreSQL connection string")
     
     def build_index(self, leaf_nodes: list) -> VectorStoreIndex:
         """
@@ -306,13 +285,114 @@ class HierarchicalClaimRetriever:
         print("AutoMergingRetriever created successfully")
         return self.retriever
     
-    def build_all(self) -> AutoMergingRetriever:
+    def _can_load_from_existing(self) -> bool:
+        """
+        Check if we can load from existing ChromaDB collection.
+        
+        Returns:
+            True if ChromaDB is enabled and collection has data and docstore exists
+        """
+        if not self.use_chromadb:
+            return False
+        
+        if self.chroma_collection is None:
+            return False
+        
+        # Check if collection has embeddings
+        count = self.chroma_collection.count()
+        if count == 0:
+            return False
+        
+        # Check if persisted docstore exists
+        docstore_path = os.path.join(self.docstore_persist_dir, "docstore.json")
+        if not os.path.exists(docstore_path):
+            print(f"⚠️ ChromaDB collection exists but docstore not found at {docstore_path}")
+            return False
+        
+        return True
+    
+    def _load_from_chromadb(self) -> AutoMergingRetriever:
+        """
+        Load existing index and retriever from ChromaDB.
+        
+        Returns:
+            AutoMergingRetriever loaded from existing data
+        """
+        print("\n" + "=" * 60)
+        print("Loading Existing Index from ChromaDB")
+        print("=" * 60)
+        
+        # Step 1: Load persisted docstore
+        print("\n[1/2] Loading persisted docstore...")
+        docstore_path = os.path.join(self.docstore_persist_dir, "docstore.json")
+        self.docstore = SimpleDocumentStore.from_persist_path(docstore_path)
+        doc_count = len(self.docstore.docs)
+        print(f"✓ Loaded docstore with {doc_count} nodes from: {docstore_path}")
+        
+        # Create ChromaDB vector store
+        vector_store = ChromaVectorStore(chroma_collection=self.chroma_collection)
+        
+        # Create storage context
+        self.storage_context = StorageContext.from_defaults(
+            docstore=self.docstore,
+            vector_store=vector_store
+        )
+        
+        # Step 2: Load index from existing vector store
+        print("\n[2/2] Loading vector index from ChromaDB...")
+        self.base_index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store,
+            storage_context=self.storage_context,
+            embed_model=self.embeddings
+        )
+        print(f"✓ Vector index loaded with {self.chroma_collection.count()} embeddings")
+        
+        # Create retriever
+        base_retriever = self.base_index.as_retriever(similarity_top_k=6)
+        retriever = AutoMergingRetriever(
+            base_retriever,
+            self.storage_context,
+            verbose=True
+        )
+        
+        self.retriever = retriever
+        
+        print("\n" + "=" * 60)
+        print("✓ Loaded retriever from existing ChromaDB collection!")
+        print("=" * 60)
+        
+        return retriever
+    
+    def build_all(self, force_rebuild: bool = False) -> AutoMergingRetriever:
         """
         Complete pipeline: load PDF, build hierarchy, create index and retriever.
+        
+        If using ChromaDB and data already exists, loads from existing collection.
+        Otherwise, builds everything from scratch.
+        
+        Args:
+            force_rebuild: If True, rebuild from scratch even if data exists
         
         Returns:
             Ready-to-use AutoMergingRetriever
         """
+        # Check if we can load from existing ChromaDB data
+        if not force_rebuild and self._can_load_from_existing():
+            print("📦 Existing ChromaDB collection found with data!")
+            return self._load_from_chromadb()
+        
+        # Clear existing collection if force_rebuild
+        if force_rebuild and self.use_chromadb and self.chroma_collection:
+            count = self.chroma_collection.count()
+            if count > 0:
+                print(f"🔄 Force rebuild requested - clearing {count} existing embeddings...")
+                self.chroma_client.delete_collection(self.collection_name)
+                self.chroma_collection = self.chroma_client.create_collection(
+                    name=self.collection_name,
+                    metadata={"description": "Hierarchical chunks for insurance claim retrieval"}
+                )
+        
+        # Build from scratch
         print("=" * 60)
         print("Building Hierarchical Auto-Merging Retriever")
         print("=" * 60)
@@ -352,7 +432,7 @@ _global_retriever_instance: Optional[HierarchicalClaimRetriever] = None
 def get_claim_retriever(
     rebuild: bool = False,
     pdf_path: str = "insurance_claim_case.pdf",
-    use_supabase: bool = False,  # Changed default to False - use in-memory by default
+    use_chromadb: bool = True,
     **kwargs
 ) -> AutoMergingRetriever:
     """
@@ -364,8 +444,8 @@ def get_claim_retriever(
     Args:
         rebuild: If True, force rebuild the retriever even if one exists
         pdf_path: Path to the insurance claim PDF
-        use_supabase: If True, store embeddings in Supabase (requires SUPABASE_DB_PASSWORD)
-                     If False, use in-memory storage (default: True)
+        use_chromadb: If True, store embeddings in ChromaDB (default: True)
+                     If False, use in-memory storage
         **kwargs: Additional arguments passed to HierarchicalClaimRetriever
         
     Returns:
@@ -383,20 +463,20 @@ def get_claim_retriever(
         print("Initializing new hierarchical retriever...")
         _global_retriever_instance = HierarchicalClaimRetriever(
             pdf_path=pdf_path,
-            use_supabase_vector_store=use_supabase,
+            use_chromadb=use_chromadb,
             **kwargs
         )
-        return _global_retriever_instance.build_all()
+        return _global_retriever_instance.build_all(force_rebuild=rebuild)
     
     if _global_retriever_instance.retriever is None:
         print("Building retriever from existing instance...")
-        return _global_retriever_instance.build_all()
+        return _global_retriever_instance.build_all(force_rebuild=False)
     
     print("Using cached retriever instance")
     return _global_retriever_instance.retriever
 
 
-def demo_retrieval(query: str = "What is the claim date?"):
+def demo_retrieval(query: str = "When did the incident occur?"):
     """
     Demonstrate the hierarchical retriever with a sample query.
     
