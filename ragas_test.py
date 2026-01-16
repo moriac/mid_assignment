@@ -103,7 +103,7 @@ def run_example_evaluation():
         "According to the chronological event timeline, at what precise time did the morning shift supervisor discover water pooling in the basement mechanical room and second‑floor production area on March 12, 2024?",
         "In the March 14, 2024 loss assessor's preliminary assessment, what percentage of the facility is estimated to be affected by damage, and to which specific areas of the building is that damage confined?",
         
-        "How would you comprehensively summarize the insurance claim, including the parties involved, nature and cause of loss, claimed amounts, and current investigation status?",
+        "Summarize the entire insurance claim case",
         "What is the complete chronological timeline of all major events from the initial February seepage observations through the anticipated resolution dates, including inspections, reports, and claim-handling milestones?",
         "What are the main coverage, documentation, and causation issues identified in the claim, and how might they affect the insurer’s final decision on property damage and business interruption payments?"
     ]
