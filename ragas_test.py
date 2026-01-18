@@ -101,9 +101,8 @@ def run_example_evaluation():
         "How many days elapsed between the incident date and when the claim was filed?"
         "What is the exact purchase order number referenced for the February 5–12, 2024 maintenance work that allegedly addressed the water intrusion?",
         "According to the chronological event timeline, at what precise time did the morning shift supervisor discover water pooling in the basement mechanical room and second‑floor production area on March 12, 2024?",         
-        "In the March 14, 2024 loss assessor's preliminary assessment, what percentage of the facility is estimated to be affected by damage?",
-        
-        "Summarize the entire insurance claim case",
+        "In the March 14, 2024 loss assessor's preliminary assessment, what percentage of the facility is estimated to be affected by damage?",     
+        "Summarize the entire insurance claim case",     
         "What is the complete chronological timeline of all major events from the initial February seepage observations through the anticipated resolution dates, including inspections, reports, and claim-handling milestones?",
         "What are the main coverage, documentation, and causation issues identified in the claim, and how might they affect the insurer’s final decision on property damage and business interruption payments?"
 
@@ -122,6 +121,9 @@ def run_example_evaluation():
         "The loss assessor's preliminary assessment on March 14, 2024, estimating 15-20% of the facility to be affected by damage, was conducted within the 2-day deadline after the incident on March 12, 2024.",
         
     ]
+    
+    # Get additional answers and concatenate to the answers list
+    answers += get_addional_answers()
     
     # You'll need to provide the contexts retrieved by your RAG system
     contexts = [
@@ -145,8 +147,6 @@ def run_example_evaluation():
         "The exact purchase order number is PR-2847",
         "6:45 AM on March 12, 2024",
         "In that preliminary assessment, the loss assessor estimated that damage affected 15–20% of the facility"
-
-      
 
     ]
     
@@ -179,6 +179,183 @@ def evaluate_custom_rag_output(
     """
     return evaluate_rag_system(questions, rag_answers, rag_contexts, ground_truths)
 
+def get_addional_answers():
+    """
+    Retrieve additional answers from the rag_specific_task_agent_results file.
+    
+    Returns:
+        List of additional answers.
+    """
+    additional_answers = [
+        "4 days, 9 hours, and 13 minutes.",
+        "PO-2024-0205-WI",
+        "6:45 AM on March 12, 2024",
+        "The preliminary assessment estimated that damage affected 15–20% of the facility."
+    ]
+
+    # Lines 1-65: First string
+    first_string = """### Insurance Claim Case Summary:
+
+#### Case Overview:
+- **Claimant:** Precision Manufacturing Ltd. (PML)
+- **Policy Number:** CP-4827-2023
+- **Claim Date Filed:** March 15, 2024
+- **Incident Date:** March 12, 2024
+- **Location:** 2847 Industrial Drive, Newark, NJ 07105
+- **Claim Amount:** $387,500 (Under investigation)
+- **Status:** Pending - Additional documentation required
+
+#### Claim Details:
+1. **Property Damage Claim:**
+   - **Reported Loss:** $287,500
+   - **Claimed Damage Components:**
+     - Water-damaged equipment: $125,000
+     - Ruined raw materials and inventory: $89,000
+     - Flooring and structural repairs: $52,000
+     - HVAC system replacement: $21,500
+   - **Assessment Status:** Pending moisture testing and structural engineer report.
+
+2. **Business Interruption Claim:**
+   - **Reported Loss:** $100,000
+   - **Period of Interruption:** March 12 - March 27, 2024
+   - **Claimed Lost Revenue:** Represents lost sales during shutdown.
+   - **Supporting Documentation Issues:** Lack of financial records, conflicting revenue data.
+
+#### Investigation Findings:
+- **Insurance Assessor Observations:**
+  - Identified inconsistencies in claimant's account and evidence.
+  - Recommended further assessments before claim approval.
+- **Public Adjuster Statement:**
+  - Asserted loss within policy limits, demanded immediate payment.
+- **Claimant Statement:**
+  - Urged prompt payment for severe and sudden damage.
+  - Disagreement with assessment findings based on provided photos.
+
+#### Insurance Company Recommendations:
+- **Current Status:** Claim under investigation, no payment authorized.
+- **Recommended Actions:** Pending resolution of key assessments and verifications.
+- **Conditional Approval Thresholds:** Based on cause determination and assessment outcomes.
+- **Estimated Timeline:** 3-4 weeks for resolution (subject to pending assessments).
+
+### Key Insights:
+1. **Discrepancies & Disputes:**
+   - Conflicting accounts between claimant, assessor, and adjuster.
+   - Lack of consensus on damage assessment and payment urgency.
+2. **Documentation Deficiencies:**
+   - Incomplete supporting evidence for claim components.
+   - Missing financial records impacting business interruption claim validation.  
+3. **Pending Assessments:**
+   - Essential evaluations such as moisture testing and structural integrity assessment.
+   - Resolution timeline contingent on completion of pending assessments.
+
+### Actionable Steps:
+1. **Documentation Review:**
+   - Ensure detailed and accurate documentation for all claimed losses.
+2. **Collaborative Assessment:**
+   - Coordinate with all parties for thorough property damage and business interruption evaluations.
+3. **Timely Resolution:**
+   - Prioritize completion of pending assessments to expedite claim resolution.   
+4. **Compliance Adherence:**
+   - Follow insurance company recommendations and conditional approval thresholds for claim processing.
+
+By addressing discrepancies, enhancing documentation, and expediting assessments, By addressing discrepancies, enhancing documentation, and expediting assessments, the insuthe insurance claim case for Precision Manufacturing Ltd. can move towards a comprehensive resolution within the estimated timeline."""
+
+    # Lines 68-95: Second string
+    second_string = """Here is a comprehensive summary of the major events from the initial February seepage observations to the anticipated resolution dates:
+
+1. **February 2024 Events**:
+   - **February 3, 2024 to February 22, 2024** (Duration: 19 days, 13 hours, 44 minutes):
+     - Maintenance staff observed minor water seepage with no formal incident report filed.
+     - Maintenance addressed water intrusion, and a roof inspection was reported.     
+     - Water seepage reappeared, leading to building occupants' relocation and production loss.
+
+2. **March 2024 Events**:
+   - **March 12, 2024** (Primary Loss Event) (Duration: 19 days, 2 hours, 47 minutes):
+     - Overnight water intrusion event discovered with the extent of damage unknown.  
+     - Possible sources of water intrusion identified but no clear cause established. 
+
+3. **Investigation Findings**:
+   - **March 12, 2024 to March 14, 2024** (Duration: 2 days, 21 hours, 12 minutes):   
+     - Inconsistencies between claimant's account and physical evidence noted.        
+     - Recommendations for moisture mapping, plumbing inspection, and financial records audit made.
+
+4. **Medical Response**:
+   - **March 12, 2024** (Duration: 0 days, 4 hours, 0 minutes):
+     - Water pooling discovered with a delay in calling an emergency response company.
+     - Initial water removal and assessment started after the arrival of the response company.
+
+5. **Overall Timeline Duration**:
+   - From **February 3, 2024 to March 27, 2024** (Total: 53 days, 13 hours, 44 minutes):
+     - Encompasses all major events from the initial observations to the anticipated resolution dates.
+
+This summary provides a structured overview of the timeline of events, including inspections, reports, and claim-handling milestones, highlighting key periods and durations for each stage of the incident."""
+
+    # Lines 97 to end: Third string
+    third_string = """### Summary of Main Coverage, Documentation, and Causation Issues in the Claim Investigation:
+
+#### 1. **Property Damage Claim Issues:**
+- **Reported Loss:** $287,500
+- **Claimed Damage Components:**
+  - Water-damaged equipment: $125,000 (lack of detailed inventory list)
+  - Ruined raw materials and inventory: $89,000 (no photos, unverified quantities)    
+  - Flooring and structural repairs: $52,000 (quote from single contractor, no competitive bids)
+  - HVAC system replacement: $21,500 (claimed as necessary, original equipment details unknown)
+- **Assessment Status:** Awaiting moisture testing and structural engineer report; public adjuster disputes damage categorization.
+
+#### 2. **Business Interruption Claim Issues:**
+- **Reported Loss:** $100,000
+- **Period of Interruption:** March 12 - March 27, 2024 (15 days, claimant's calculation)
+- **Claimed Lost Revenue:** Represents lost sales during facility shutdown
+- **Supporting Documentation Issues:**
+  - Lack of monthly profit-and-loss statements
+  - Absence of evidence for regular seasonal patterns
+  - No documentation of canceled vs. deferred orders
+  - Bank deposits for March contradict the $100,000 loss claim
+  - Incomplete payroll records (only February full records provided)
+
+#### 3. **Insurer's Recommended Actions and Conditional Approval Thresholds:**        
+- **Current Status:** Claim under investigation; no payment authorized.
+- **Recommended Actions:**
+  - Establish root cause of water intrusion definitively
+  - Confirm damage extent through moisture testing
+  - Complete structural integrity assessment
+  - Verify business interruption calculation against financial records
+  - Confirm photo authenticity and maintenance compliance history
+- **Conditional Approval Thresholds:**
+  - Cause determination impacts coverage decision
+  - Property damage claim approval within policy limits once cause is determined      
+  - Business interruption claim reduction based on financial record conflicts
+- **Estimated Timeline to Resolution:** 3-4 weeks contingent on pending assessments.  
+
+#### 4. **Investigation Findings and Disputes:**
+- **Assessor Observations:**
+  - Inconsistencies between claimant's account and physical evidence
+  - Conflicting timeline information
+  - Recommendations for further assessments before claim approval
+- **Public Adjuster Statement:**
+  - Asserts loss is within policy limits, demands immediate payment
+- **Claimant Statement:**
+  - Claims good-faith customer history, requests immediate funds for operations restart.
+
+### Impact on Insurer's Final Decision:
+
+- **Documentation Issues:** Incomplete documentation may weaken the claim's validity and affect the final settlement amount.
+- **Causation Disputes:** Determining the root cause of the water damage is crucial for coverage decisions.
+- **Assessment Status:** Pending moisture testing and structural reports may delay the final decision.
+- **Conditional Approval Thresholds:** Cause determination will dictate coverage amounts for property damage and business interruption.
+- **Timeline to Resolution:** Estimated 3-4 weeks for a decision, subject to completion of pending assessments and resolution of disputes.
+
+### Key Considerations for the Insurer:
+- **Thorough Documentation:** Ensure all evidence and supporting documents are complete and consistent.
+- **Causation Clarity:** Resolve disputes and determine the exact cause of loss for accurate coverage assessment.
+- **Timely Assessments:** Expedite pending assessments to avoid prolonged claim processing.
+- **Compliance with Policy Limits:** Adhere to conditional approval thresholds based on the investigation's outcomes.
+- **Communication and Resolution:** Address disputes and conflicting statements to reach a fair and informed final decision."""
+
+    # Create the list
+    text_list = [first_string, second_string, third_string]
+
+    return text_list
 
 if __name__ == "__main__":
     # Run example evaluation
