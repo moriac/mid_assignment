@@ -89,8 +89,8 @@ def main():
         print("Building hierarchical auto-merging retriever...")
         print("(This may take a moment on first run)\n")
         
-        # Get the retriever (uses in-memory vector store by default)
-        retriever = get_claim_retriever(use_supabase=False)
+        # Get the retriever (uses chromaDb vector store by default)
+        retriever = get_claim_retriever(use_chromadb=True)
         
         print("\n✅ Hierarchical retrieval system ready!\n")
         

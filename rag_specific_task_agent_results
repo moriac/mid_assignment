@@ -306,6 +306,7 @@ operations."*
 This claim involves partial water damage to a three-story manufacturing
 facility following an undetermined plumbing event."
 ],
+
 [
   "*
 
@@ -354,99 +355,25 @@ March partial |
 **Next Review Date:** March 22, 2024
 **Assigned Investigator:** [Name redacted]
 **File Status:** OPEN - ACTIVE INVESTIGATION",
-  "inspection (March 14)
-- ✓ Emergency mitigation services engaged (March 12)
-- ✓ Photographic documentation collected
-- ✓ Partial business records review
+  "| March 25 | Structural and engineering assessments due |
+| March 28 | Public adjuster revised damage estimate due |
+| March 31 | All outstanding documentation deadline |
+| April 5 | Internal claim review meeting |
+| April 12 | Coverage determination notice to claimant |
+| April 19 | Final claim decision and payment/denial notice |
 
-### **Pending Actions** *(Due by March 22-29)*
-- ☐ Moisture mapping and testing report
-- ☐ Structural engineer assessment
-- ☐ Plumbing system inspection and assessment
-- ☐ Roof structural evaluation
-- ☐ Complete maintenance records from claimant
-- ☐ All water mitigation invoices and receipts
-- ☐ Complete business financial records (Feb-March)
-- ☐ Customer order documentation and cancellation records
-- ☐"
+---
+
+## CLAIM CLASSIFICATION & RISK FACTORS
+
+**Claim Complexity Level:** HIGH
+**Investigation Risk Rating:** ELEVATED
+
+**Risk Factors Identified:**
+
+1."
 ],
-[
-  "- *Note: No photos taken. No dates recorded in maintenance log.*
 
-**February 5-12, 2024**
-- Period during which maintenance allegedly addressed water intrusion.
-Exact dates and methods unclear.
-- Purchase order #PR-2847 issued but vendor name partially illegible in
-copy provided.
-- *Note: Invoice not yet submitted. Vendor contact information
-unavailable.*
-
-**February 18, 2024**
-- Claimant reports roof inspection conducted. Inspector identification
-unknown.",
-  "| Vendor invoices (Feb repairs) | 1 of 3 received | Cannot verify amounts
-spent |
-| Water mitigation invoices | 2 of 3 received | Cannot reconcile charges
-|
-| Business financial records | Incomplete | Cannot verify interruption
-loss |
-| Production logs | Not provided | Cannot verify operational status March
-16-27 |
-| Customer communication records | Not provided | Cannot verify cancelled
-orders |
-
-### **Specific Unresolved Questions**
-
-1. **Water Source Determination:**
-   - Root cause still undetermined after 3 days.",
-  "inspection (March 14)
-- ✓ Emergency mitigation services engaged (March 12)
-- ✓ Photographic documentation collected
-- ✓ Partial business records review
-
-### **Pending Actions** *(Due by March 22-29)*
-- ☐ Moisture mapping and testing report
-- ☐ Structural engineer assessment
-- ☐ Plumbing system inspection and assessment
-- ☐ Roof structural evaluation
-- ☐ Complete maintenance records from claimant
-- ☐ All water mitigation invoices and receipts
-- ☐ Complete business financial records (Feb-March)
-- ☐ Customer order documentation and cancellation records
-- ☐",
-  "records (Feb-March)
-- ☐ Customer order documentation and cancellation records
-- ☐ Photo metadata authentication
-- ☐ Competitive repair quotes (minimum 3)
-- ☐ Staff interviews regarding timeline and operational impact
-
-### **Decision Timeline**
-
-| Date | Milestone |
-|------|-----------|
-| March 22 | Moisture testing report due |",
-  "| Initial incident report | Claimant | March 13 | Received - incomplete |
-| Maintenance records | Claimant | March 14 | Partial (3 of 5 expected) |
-| Water mitigation invoice | QuickDry/Flow Services | March 14 | 2 of 3
-received |
-| Photographic evidence | Claimant | March 14 | Received - metadata
-verification pending |
-| Public adjuster estimate | Adjuster (Mark T.) | March 15 | Received -
-under review |
-| Insurance assessor report | Jennifer K.",
-  "- West wall seepage (Feb) could be separate from overhead water (March
-12).
-   - Plumbing third floor not yet inspected.
-   - *Resolution needed: Plumbing assessment + structural inspection*
-
-2. **Extent of Damage Discrepancy:**
-   - Claimant claims 60% of facility affected.
-   - Insurance assessor estimates 15-20%.
-   - Public adjuster claims "closer to 40%."
-   - *Resolution needed: Moisture mapping + structural survey*
-
-3."
-],
 [
   "**March 12, 2024 - 2:47 AM** *(Primary Loss Event)*
 - Overnight water intrusion event discovered when morning shift arrived
@@ -516,9 +443,25 @@ inspected facility.
 of second floor (estimated 15-20% of facility).
 
 **March 14, 2024 - 3:30 PM**
-- Claimant provided photographic evidence of water damage."
+- Claimant provided photographic evidence of water damage.",
+  "Inspector identification
+unknown.
+- Preliminary report mentioned "potential vulnerability in roof seams,
+west side."
+- Original inspection report not provided; only handwritten notes from
+site manager.
+
+**February 22, 2024**
+- Water seepage reportedly reappeared. No photographs.
+- Building occupants relocated from second floor production area "for
+several days." Exact duration not specified.
+- Estimated loss of production: "approximately $25,000" (no supporting
+calculations).
+
+### **March 2024 Events**"
 ],
-[
+
+ [
   "- West wall seepage (Feb) could be separate from overhead water (March
 12).
    - Plumbing third floor not yet inspected.
@@ -569,23 +512,22 @@ provided)
 - Ruined raw materials and work-in-progress inventory: $89,000 (no
 photos, quantities unverified)
 - Flooring and structural repairs: $52,000 (quote from single contractor;",
-  "- *Resolution needed: Moisture mapping + structural survey*
-
-3. **Timeline of Feb-March Events:**
-   - Feb repairs completed but details sparse.
-   - Feb seepage recurrence date unclear.
-   - Duration of Feb occupant displacement unknown.
-   - *Resolution needed: Maintenance records review + staff interviews*
-
-4. **Business Interruption Calculation:**
-   - March bank deposits ($67K) contradict loss claim ($100K).
-   - Partial production capacity March 16-27 not accounted for in claim.",
   "000 (quote from single contractor;
 no competitive bids)
 - HVAC system replacement: $21,500 (claimed as "necessary" but original
 equipment age/condition unknown)
 
 **Assessment Status:** Awaiting moisture testing and structural engineer
-report. Public adjuster disputes assessor's damage categorization."
+report. Public adjuster disputes assessor's damage categorization.",
+  "*"Preliminary site inspection revealed inconsistencies between claimant's
+account and physical evidence. Water patterns on second floor suggest
+localized damage, not facility-wide. Claimant provided conflicting
+timeline regarding Feb seepage vs. March 12 primary event. Public
+adjuster present at inspection but did not cooperate with full
+assessment. Recommend: (1) Moisture mapping, (2) Plumbing inspection, (3)
+Roof structural assessment, (4) Financial records audit for BI claim. Do
+not approve claim until cause of loss is determined."
 ]
+
+
 ]

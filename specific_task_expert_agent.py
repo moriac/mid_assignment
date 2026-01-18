@@ -46,7 +46,7 @@ class SpecificTaskExpertAgent:
         if use_hierarchical_retrieval:
             print("Initializing hierarchical auto-merging retrieval system...")
             try:
-                self.hierarchical_retriever = get_claim_retriever(use_supabase=False)
+                self.hierarchical_retriever = get_claim_retriever(use_chromadb=True)
                 print("✓ Hierarchical retriever ready")
             except Exception as e:
                 print(f"⚠️ Warning: Could not initialize hierarchical retriever: {e}")

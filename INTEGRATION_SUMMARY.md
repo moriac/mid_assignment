@@ -137,7 +137,7 @@ agent = SpecificTaskExpertAgent(use_hierarchical_retrieval=False)
 from hierarchical_retriever import get_claim_retriever
 
 # Requires SUPABASE_DB_PASSWORD in .env
-retriever = get_claim_retriever(use_supabase=True)
+retriever = get_claim_retriever(use_chromadb=True)
 ```
 
 ### Customize Model

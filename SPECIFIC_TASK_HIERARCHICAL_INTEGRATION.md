@@ -95,7 +95,7 @@ def __init__(self, model_name="gpt-3.5-turbo", temperature=0, use_hierarchical_r
     if use_hierarchical_retrieval:
         print("Initializing hierarchical auto-merging retrieval system...")
         try:
-            self.hierarchical_retriever = get_claim_retriever(use_supabase=False)
+            self.hierarchical_retriever = get_claim_retriever(use_chromadb=True)
             print("✓ Hierarchical retriever ready")
         except Exception as e:
             print(f"⚠️ Warning: Could not initialize hierarchical retriever: {e}")
@@ -215,7 +215,7 @@ agent = SpecificTaskExpertAgent()  # Uses in-memory vector store
 from hierarchical_retriever import get_claim_retriever
 
 # In agent initialization, configure retriever separately
-retriever = get_claim_retriever(use_supabase=True)
+retriever = get_claim_retriever(use_chromadb=True)
 ```
 
 ### Chunk Sizes
