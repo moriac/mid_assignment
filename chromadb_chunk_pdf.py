@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import chromadb
 from chromadb.config import Settings
+from chromadb.utils import embedding_functions  # ← Add this
 
 # For PDF reading
 import fitz  # PyMuPDF
@@ -20,13 +21,20 @@ def initialize_chromadb():
     """Initialize ChromaDB client with persistent storage"""
     print("🔧 Initializing ChromaDB...")
     
+    # Create OpenAI embedding function
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        model_name="text-embedding-3-small"  # ← Match your agent's model
+    )
+    
     # Create persistent client (saves to ./chroma_db directory)
     client = chromadb.PersistentClient(path="./chroma_db")
     
-    # Get or create collection for insurance claims
+    # Get or create collection for insurance claims with OpenAI embeddings
     collection = client.get_or_create_collection(
         name="insurance_claims",
-        metadata={"description": "Insurance claim documents with intelligent chunking"}
+        metadata={"description": "Insurance claim documents with intelligent chunking"},
+        embedding_function=openai_ef  # ← Add this
     )
     
     print(f"✅ ChromaDB initialized: {collection.count()} existing documents\n")

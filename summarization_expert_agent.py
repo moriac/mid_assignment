@@ -1,15 +1,15 @@
 """
 Summarization Expert Agent using LangChain
 Handles broad questions, summaries, and timeline-oriented queries.
-Enhanced with Supabase vector search for context retrieval.
+Enhanced with ChromaDB vector search for context retrieval.
 """
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from typing import Optional
 from dotenv import load_dotenv
-from supabase.client import create_client
 import os
+import chromadb
 from mcp.claim_date_tools import (
     calculate_timeline_duration,
     calculate_business_days,
@@ -24,20 +24,25 @@ class SummarizationExpertAgent:
     """
     A specialized agent for handling broad questions, summaries, and timeline-oriented queries.
     This agent excels at providing comprehensive overviews and high-level insights.
-    Enhanced with Supabase vector search for retrieving relevant context.
+    Enhanced with ChromaDB vector search for retrieving relevant context.
     """
     
-    def __init__(self, model_name="gpt-3.5-turbo", temperature=0.7):
+    def __init__(self, model_name="gpt-3.5-turbo", temperature=0.7, collection_name="insurance_claims", chroma_persist_dir="./chroma_db"):
         """
         Initialize the Summarization Expert agent.
         
         Args:
             model_name: The LLM model to use
             temperature: Temperature for creative but coherent summaries
+            collection_name: ChromaDB collection name (default: "insurance_claims")
+            chroma_persist_dir: ChromaDB persistence directory (default: "./chroma_db")
         """
         self.llm = ChatOpenAI(model=model_name, temperature=temperature)
         self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        self.supabase_client = None
+        self.collection_name = collection_name
+        self.chroma_persist_dir = chroma_persist_dir
+        self.chroma_client = None
+        self.chroma_collection = None
         
         # Initialize MCP date/time tools
         self.date_tools = [
@@ -48,48 +53,58 @@ class SummarizationExpertAgent:
         # Bind tools to LLM for automatic tool calling
         self.llm_with_tools = self.llm.bind_tools(self.date_tools)
         
-        # Initialize Supabase if credentials are available
+        # Initialize ChromaDB
         try:
-            supabase_url = os.getenv("SUPABASE_URL")
-            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
-            if supabase_url and supabase_key:
-                self.supabase_client = create_client(supabase_url, supabase_key)
-                print("✅ Supabase connected for context retrieval")
+            self._init_chromadb()
         except Exception as e:
-            print(f"⚠️ Supabase connection failed: {str(e)}")
+            print(f"⚠️ ChromaDB connection failed: {str(e)}")
     
-    def retrieve_relevant_chunks(self, query: str, top_k: int = 3, table_name: str = "summary_chunks") -> list:
+    def _init_chromadb(self):
+        """Initialize ChromaDB client and collection."""
+        print(f"🔧 Initializing ChromaDB with collection: {self.collection_name}")
+        
+        # Create persistent client
+        self.chroma_client = chromadb.PersistentClient(path=self.chroma_persist_dir)
+        
+        # Get or create collection
+        self.chroma_collection = self.chroma_client.get_or_create_collection(
+            name=self.collection_name,
+            metadata={"description": "Insurance claim documents for summarization"}
+        )
+        
+        print(f"✅ ChromaDB connected: {self.chroma_collection.count()} documents in collection")
+
+    
+    def retrieve_relevant_chunks(self, query: str, top_k: int = 3) -> list:
         """
-        Retrieve relevant chunks from Supabase vector database.
+        Retrieve relevant chunks from ChromaDB vector database.
         
         Args:
             query: The user's query
             top_k: Number of top relevant chunks to retrieve
-            table_name: Name of the Supabase table
             
         Returns:
             List of relevant chunk texts
         """
-        if not self.supabase_client:
-            print("⚠️ Supabase not available, proceeding without context")
+        if not self.chroma_collection:
+            print("⚠️ ChromaDB not available, proceeding without context")
             return []
         
         try:
             # Create query embedding
             query_embedding = self.embeddings.embed_query(query)
             
-            # Search for similar chunks
-            results = self.supabase_client.rpc(
-                f"{table_name}_search",
-                {
-                    "query_embedding": query_embedding,
-                    "match_count": top_k
-                }
-            ).execute()
+            # Query ChromaDB for similar chunks
+            results = self.chroma_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+                include=["documents", "metadatas", "distances"]
+            )
             
-            if results.data:
-                print(f"✅ Retrieved {len(results.data)} relevant chunks from Supabase")
-                return [chunk["content"] for chunk in results.data]
+            if results and results['documents'] and results['documents'][0]:
+                chunks = results['documents'][0]
+                print(f"✅ Retrieved {len(chunks)} relevant chunks from ChromaDB")
+                return chunks
             else:
                 print("⚠️ No relevant chunks found")
                 return []
@@ -101,7 +116,7 @@ class SummarizationExpertAgent:
     def process_broad_question(self, user_input: str, context: Optional[str] = None) -> str:
         """
         Process a broad question and generate a comprehensive summary or overview.
-        Now enhanced with Supabase vector search for retrieving relevant context.
+        Now enhanced with ChromaDB vector search for retrieving relevant context.
         
         Args:
             user_input: The user's broad question
@@ -113,7 +128,7 @@ class SummarizationExpertAgent:
         try:
             print(f"\n🔍 Processing broad question: {user_input}")
             
-            # Retrieve relevant chunks from Supabase
+            # Retrieve relevant chunks from ChromaDB
             relevant_chunks = self.retrieve_relevant_chunks(user_input, top_k=3)
             
             # If no relevant chunks found and no additional context provided, return early

@@ -27,7 +27,6 @@ def print_separator(title: str = ""):
     else:
         print(f"{'=' * 70}\n")
 
-
 def print_retrieved_contexts(retriever, user_question: str):
     """
     Retrieve and print contexts from the vector store.
