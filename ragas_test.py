@@ -101,11 +101,10 @@ def run_example_evaluation():
         "How many days elapsed between the incident date and when the claim was filed?"
         "What is the exact purchase order number referenced for the February 5–12, 2024 maintenance work that allegedly addressed the water intrusion?",
         "According to the chronological event timeline, at what precise time did the morning shift supervisor discover water pooling in the basement mechanical room and second‑floor production area on March 12, 2024?",         
-        "In the March 14, 2024 loss assessor's preliminary assessment, what percentage of the facility is estimated to be affected by damage, and to which specific areas of the building is that damage confined?",
+        "In the March 14, 2024 loss assessor's preliminary assessment, what percentage of the facility is estimated to be affected by damage?",
         
         "Summarize the entire insurance claim case",
         "What is the complete chronological timeline of all major events from the initial February seepage observations through the anticipated resolution dates, including inspections, reports, and claim-handling milestones?",
-
         "What are the main coverage, documentation, and causation issues identified in the claim, and how might they affect the insurer’s final decision on property damage and business interruption payments?"
 
     ]
@@ -120,7 +119,7 @@ def run_example_evaluation():
         "The exact duration between the incident date and when the claim was filed is 3 days, 8 hours, and 13 minutes, totaling 80.22 hours.",        
         "The loss location is 2847 Industrial Drive, Newark, NJ 07105.",
         "The morning shift supervisor discovered water pooling in the basement mechanical room and second-floor production area on March 12, 2024, at 6:30 AM.",
-        "The loss assessor's preliminary assessment on March 14, 2024, did not provide specific information on the percentage of the facility estimated to be affected by damage or the specific areas of the building where the damage is confined."
+        "The loss assessor's preliminary assessment on March 14, 2024, estimating 15-20% of the facility to be affected by damage, was conducted within the 2-day deadline after the incident on March 12, 2024.",
         
     ]
     
@@ -144,9 +143,11 @@ def run_example_evaluation():
         "March 12, 2024 at 2:47 AM.",
         "3 days, 8 hours, and 13 minutes.",
         "The exact purchase order number is PR-2847",
-
         "6:45 AM on March 12, 2024",
-        "35% of the facility, confined to basement mechanical room and second-floor production area",
+        "In that preliminary assessment, the loss assessor estimated that damage affected 15–20% of the facility"
+
+      
+
     ]
     
     print("Running RAGAS evaluation with needle-in-a-haystack queries...")
