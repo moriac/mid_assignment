@@ -24,6 +24,8 @@ from ragas.metrics import (
     context_recall,
 )
 
+from langchain_openai import ChatOpenAI
+
 
 def create_ragas_dataset(
     questions: List[str],
@@ -83,10 +85,21 @@ def evaluate_rag_system(
     
     # Create dataset
     dataset = create_ragas_dataset(questions, answers, contexts, ground_truths)
+
+    # Configure the LLM for RAGAS
+    llm = ChatOpenAI(
+        model="gpt-4o",  # or "gpt-3.5-turbo", "gpt-4", etc.
+        temperature=0
+    )
     
-    # Run evaluation
-    results = evaluate(dataset, metrics=metrics)
+    # Run evaluation with specified LLM
+    results = evaluate(
+        dataset, 
+        metrics=metrics,
+        llm=llm  # Inject your model here
+    )
     
+
     return results
 
 
