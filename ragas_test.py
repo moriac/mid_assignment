@@ -126,7 +126,8 @@ def run_example_evaluation():
     answers += get_addional_answers()
     
     # Contexts retrieved from rag_context file
-    contexts = [[
+    contexts = [
+        [
   "*\n\n**March 15, 2024 - 11:00 AM**\n\n\n- Formal claim filed with all parties (claimant, adjuster, assessor,\ncarrier).",
   "- Photo dates appear inconsistent (some labeled March 12; others lack\ntimestamps; one appears to be from 2023 based on calendar in background).\n- *Concern flagged: Photo verification pending.*\n\n**March 15, 2024 - 11:00 AM**",
   "| March 25 | Structural and engineering assessments due |\n| March 28 | Public adjuster revised damage estimate due |\n| March 31 | All outstanding documentation deadline |\n| April 5 | Internal claim review meeting |\n| April 12 | Coverage determination notice to claimant |\n| April 19 | Final claim decision and payment/denial notice |\n\n---\n\n## CLAIM CLASSIFICATION & RISK FACTORS\n\n**Claim Complexity Level:** HIGH\n**Investigation Risk Rating:** ELEVATED\n\n**Risk Factors Identified:**\n\n1.",
@@ -222,10 +223,13 @@ def run_example_evaluation():
         "March 12, 2024 at 2:47 AM.",
         "3 days, 8 hours, and 13 minutes.",
         "The exact purchase order number is PR-2847",
-        "6:45 AM on March 12, 2024",
+        "6:30 AM on March 12, 2024",
         "In that preliminary assessment, the loss assessor estimated that damage affected 15–20% of the facility"
 
     ]
+    
+    # Get additional ground truths and concatenate to the ground_truths list
+    ground_truths += get_additional_ground_truths()
     
     print("Running RAGAS evaluation with needle-in-a-haystack queries...")
     results = evaluate_rag_system(questions, answers, contexts, ground_truths)
@@ -263,12 +267,6 @@ def get_addional_answers():
     Returns:
         List of additional answers.
     """
-    additional_answers = [
-        "4 days, 9 hours, and 13 minutes.",
-        "PO-2024-0205-WI",
-        "6:45 AM on March 12, 2024",
-        "The preliminary assessment estimated that damage affected 15–20% of the facility."
-    ]
 
     # Lines 1-65: First string
     first_string = """### Insurance Claim Case Summary:
@@ -433,6 +431,21 @@ This summary provides a structured overview of the timeline of events, including
     text_list = [first_string, second_string, third_string]
 
     return text_list
+
+def get_additional_ground_truths():
+    """
+    Retrieve additional ground truth answers from the rag_ground_truth file.
+    
+    Returns:
+        List of additional ground truth strings.
+    """
+    import json
+    
+    # Read the rag_ground_truth file
+    with open('rag_ground_truth', 'r', encoding='utf-8') as f:
+        ground_truth_data = json.load(f)
+       
+    return ground_truth_data
 
 if __name__ == "__main__":
     # Run example evaluation
