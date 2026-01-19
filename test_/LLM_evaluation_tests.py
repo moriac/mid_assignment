@@ -38,6 +38,11 @@ TEST_CASES = [
         "question": "How many days elapsed between the incident date and when the claim was filed?",
         "ground_truth": "The exact duration between the incident date and when the claim was filed is 3 days, 8 hours, and 13 minutes, totaling 80.22 hours."
     },
+    {
+        "id": "water_pooling_discovery_time",
+        "question": "According to the chronological event timeline, at what precise time did the morning shift supervisor discover water pooling in the basement mechanical room and second‑floor production area on March 12, 2024?",
+        "ground_truth": "6:30 AM on March 12, 2024"
+    },
     # Add more test cases below:
     # {
     #     "id": "claim_amount",
