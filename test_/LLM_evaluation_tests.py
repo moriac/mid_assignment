@@ -6,10 +6,14 @@ A different LLM model evaluates the accuracy of the agent's responses.
 """
 
 import os
+import sys
 import pytest
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load environment variables
 load_dotenv()
@@ -28,6 +32,11 @@ TEST_CASES = [
         "id": "incident_reported_date",
         "question": "When was the incident reported?",
         "ground_truth": "The incident was reported on March 15, 2024, at 11:00 AM."
+    },
+    {
+        "id": "days_elapsed_incident_to_claim",
+        "question": "How many days elapsed between the incident date and when the claim was filed?",
+        "ground_truth": "The exact duration between the incident date and when the claim was filed is 3 days, 8 hours, and 13 minutes, totaling 80.22 hours."
     },
     # Add more test cases below:
     # {
