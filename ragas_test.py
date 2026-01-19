@@ -11,6 +11,8 @@ RAGAS metrics include:
 - Context Recall: Measures if all relevant information was retrieved
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # This must be called before importing OpenAI client
 import os
 from typing import List, Dict, Any
 from datasets import Dataset
@@ -123,7 +125,7 @@ def run_example_evaluation():
     ]
     
     # Get additional answers and concatenate to the answers list
-    answers += get_addional_answers()
+    answers += get_additional_answers()
     
     # Contexts retrieved from rag_context file
     contexts = [
@@ -325,7 +327,7 @@ def evaluate_custom_rag_output(
     """
     return evaluate_rag_system(questions, rag_answers, rag_contexts, ground_truths)
 
-def get_addional_answers():
+def get_additional_answers():
     """
     Retrieve additional answers from the rag_specific_task_agent_results file.
     
@@ -398,7 +400,7 @@ def get_addional_answers():
 4. **Compliance Adherence:**
    - Follow insurance company recommendations and conditional approval thresholds for claim processing.
 
-By addressing discrepancies, enhancing documentation, and expediting assessments, By addressing discrepancies, enhancing documentation, and expediting assessments, the insuthe insurance claim case for Precision Manufacturing Ltd. can move towards a comprehensive resolution within the estimated timeline."""
+By addressing discrepancies, enhancing documentation, and expediting assessments, the insurance claim case for Precision Manufacturing Ltd. can move towards a comprehensive resolution within the estimated timeline."""
 
     # Lines 68-95: Second string
     second_string = """Here is a comprehensive summary of the major events from the initial February seepage observations to the anticipated resolution dates:
